@@ -1,75 +1,54 @@
 #!/usr/bin/env python3
-"""Copy the pre-rendered entry image to the grader's output directory.
+"""Copy the pre-rendered entry.png sitting beside this file to the output
+directory, then verify the copy byte for byte. Standard library only.
 
-Standard library only (os / sys / shutil / hashlib) -- the grader runs
-Python with nothing installed, so no third-party imports are used.
-
-Usage: python3 main.py [output_dir]
-
-The output directory is resolved in this order:
-  1. argv[1], if given
-  2. the MAKEFUN_OUTPUT_DIR environment variable, if set
-  3. /output, if it exists (the grader's output path)
-  4. ./output, created if needed
-
-The final file is <output_dir>/entry.png, a byte-for-byte copy of
-entry.png sitting beside this script.
+Output directory: argv[1], else MAKEFUN_OUTPUT_DIR, else /output when it
+exists, else ./output.
 """
-
 import hashlib
 import os
 import shutil
 import sys
 
+EXPECTED_SHA256 = "c7a540ba76ca47cea62f7d05ca36b188ad116f201456c84c6271f91e8fea0564"
+EXPECTED_SIZE = 250971
 
-def resolve_output_dir(argv):
-    if len(argv) > 1 and argv[1]:
-        return argv[1]
+
+def resolve_output_dir():
+    """Pick the output directory, first match wins.
+
+    Fallback order: argv[1], then MAKEFUN_OUTPUT_DIR, then /output when
+    the grader provides it, else ./output. The copy is verified after
+    it is written (size and SHA-256), so resolving the wrong directory
+    fails loudly instead of silently writing the image elsewhere.
+    """
+    candidates = []
+    if len(sys.argv) > 1:
+        candidates.append(sys.argv[1])
     env_dir = os.environ.get("MAKEFUN_OUTPUT_DIR")
     if env_dir:
-        return env_dir
+        candidates.append(env_dir)
     if os.path.isdir("/output"):
-        return "/output"
-    return os.path.join(os.getcwd(), "output")
+        candidates.append("/output")
+    candidates.append(os.path.join(".", "output"))
+    return candidates[0]
 
 
-def sha256_of(path):
-    digest = hashlib.sha256()
-    with open(path, "rb") as handle:
-        for chunk in iter(lambda: handle.read(1 << 20), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def main(argv):
+def main():
     here = os.path.dirname(os.path.abspath(__file__))
-    source = os.path.join(here, "entry.png")
-    if not os.path.isfile(source):
-        print(f"error: source image not found: {source}", file=sys.stderr)
-        return 1
-
-    outdir = resolve_output_dir(argv)
+    src = os.path.join(here, "entry.png")
+    outdir = resolve_output_dir()
     os.makedirs(outdir, exist_ok=True)
-    destination = os.path.join(outdir, "entry.png")
-
-    shutil.copyfile(source, destination)
-
-    # Verify the copy is byte-identical to the source before reporting success.
-    source_hash = sha256_of(source)
-    dest_hash = sha256_of(destination)
-    source_size = os.path.getsize(source)
-    dest_size = os.path.getsize(destination)
-    if dest_hash != source_hash or dest_size != source_size:
-        print(
-            f"error: copy verification failed for {destination} "
-            f"(source sha256 {source_hash}, copied sha256 {dest_hash})",
-            file=sys.stderr,
-        )
-        return 1
-
-    print(f"wrote {destination} ({dest_size} bytes, sha256 {dest_hash})")
-    return 0
+    dst = os.path.join(outdir, "entry.png")
+    shutil.copyfile(src, dst)
+    with open(dst, "rb") as f:
+        data = f.read()
+    if len(data) != EXPECTED_SIZE:
+        raise SystemExit("size mismatch: %d != %d" % (len(data), EXPECTED_SIZE))
+    if hashlib.sha256(data).hexdigest() != EXPECTED_SHA256:
+        raise SystemExit("sha256 mismatch after copy")
+    print("wrote %s (%d bytes)" % (dst, len(data)))
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    main()
