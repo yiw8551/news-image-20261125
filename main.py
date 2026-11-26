@@ -3,8 +3,11 @@
 Wednesday 25 November 2026. 62 verified stories, 10 regions.
 Deterministic PIL render: run twice, outputs are byte-identical.
 Usage: python3 main.py [output.png]
+Output: /output/entry.png when /output exists (grader), otherwise
+./output/entry.png. MAKEFUN_OUTPUT_DIR overrides the output directory.
 """
 import hashlib
+import os
 import sys
 from PIL import Image, ImageDraw, ImageFont
 
@@ -498,8 +501,28 @@ def render():
         yy += 36
     return img
 
+def resolve_output():
+    """Pick the output path for the rendered PNG.
+
+    An explicit CLI argument wins. Otherwise: MAKEFUN_OUTPUT_DIR if set,
+    else /output/entry.png when /output exists (the grader runs the repo
+    read-only and only /output is writable), else ./output/entry.png
+    (directory created if needed).
+    """
+    if len(sys.argv) > 1:
+        return sys.argv[1]
+    env_dir = os.environ.get("MAKEFUN_OUTPUT_DIR")
+    if env_dir:
+        out_dir = env_dir
+    elif os.path.isdir("/output"):
+        out_dir = "/output"
+    else:
+        out_dir = os.path.join(os.getcwd(), "output")
+    os.makedirs(out_dir, exist_ok=True)
+    return os.path.join(out_dir, "entry.png")
+
 def main():
-    out = sys.argv[1] if len(sys.argv) > 1 else "news-image-20261125-v2.png"
+    out = resolve_output()
     img = render()
     img.save(out, format="PNG")
     with open(out, "rb") as fh:
