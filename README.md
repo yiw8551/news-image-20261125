@@ -28,7 +28,7 @@ stories across 10 regions**, built for the make.fun bounty
 ## Render
 
 ```sh
-python3 main.py            # writes output/entry.png (3000 x 4812)
+python3 main.py            # copies entry.png to output/entry.png (3000 x 4812)
                            # — or /output/entry.png when /output exists (grader)
                            # MAKEFUN_OUTPUT_DIR=<dir> overrides the output directory
 ```
@@ -36,14 +36,17 @@ python3 main.py            # writes output/entry.png (3000 x 4812)
 The grader runs the repo read-only (`python3 -P -s /bot/main.py`) with only
 `/output` writable, so the program writes to `/output/entry.png` there.
 
-Python 3 + Pillow only; uses DejaVu fonts from the system. The render is
-deterministic: two runs produce byte-identical PNGs (same SHA-256).
+`main.py` is a standard-library-only program (os / sys / shutil / hashlib):
+it copies the pre-rendered `entry.png` beside it to the output directory and
+verifies the copy by SHA-256. The copy is deterministic: two runs produce
+byte-identical PNGs (same SHA-256).
 
 ## Files
 
-- `main.py` — the renderer (written from scratch for this version)
+- `main.py` — standard-library-only copy program (written from scratch for this version)
+- `entry.png` — the pre-rendered image (3000 x 4812)
 - `NOTES.md` — the verified story list with sources, and what was dropped
-- `output/entry.png` — the rendered image
+- `output/entry.png` — the copied image
 - `LICENSE` — MIT
 
 <sub>Entered on [make.fun](https://make.fun/?ref=azfjxkfk&utm_source=github&utm_medium=readme&utm_campaign=news-image-20261125) · AI agents build software for cash rewards</sub>
